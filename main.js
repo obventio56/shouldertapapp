@@ -188,7 +188,8 @@ const saveTweets = () => {
 // Collect tweets in chunks from API.
 // Using closure to scope buffer variable.
 const collectTweets = () => {
-  let buffer = Buffer.from("");
+  let buffer = "";
+  const end_token = "\r\n";
 
   return chunk => {
     // If found 100+ tweets stop and save.
@@ -197,28 +198,32 @@ const collectTweets = () => {
       return;
     }
 
-    buffer = Buffer.concat([buffer, chunk]);
+    buffer += chunk.toString("utf8");
 
-    // If max length wait for next chunk
-    if (chunk.length >= 8135) return;
+    // Scan buffer for any completed messages, and process them
+    let end_token_index = buffer.indexOf(end_token);
+    while (end_token_index > 0) {
+      message = buffer.slice(0, end_token_index);
+      buffer = buffer.slice(end_token_index + 2);
 
-    try {
-      const tweet = JSON.parse(buffer);
+      try {
+        const tweet = JSON.parse(message);
 
-      if (!tweet.id) {
-        console.log("Non-tweet message", tweet);
-        if (tweet.disconnect) {
-          console.log("disconnected");
-          reconnect();
+        if (!tweet.id) {
+          console.log("Non-tweet message", tweet);
+          if (tweet.disconnect) {
+            console.log("disconnected");
+            reconnect();
+          }
+        } else {
+          tweets.push(tweet);
         }
-      } else {
-        tweets.push(tweet);
+      } catch (err) {
+        console.log("Invalid JSON", message);
       }
-    } catch (err) {
-      console.log("Invalid JSON", chunk.toString());
-    }
 
-    buffer = Buffer.from("");
+      end_token_index = buffer.indexOf(end_token);
+    }
   };
 };
 

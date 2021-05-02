@@ -9,3 +9,5 @@
 ## Run Tests:
 
     npm test
+
+Example output is in output.tsv
